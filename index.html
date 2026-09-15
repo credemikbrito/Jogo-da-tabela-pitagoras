@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Desafio da Tabela — Mais Desafios de Múltiplos</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eef4fb;color:#172033;font-family:Arial,sans-serif}
+.app{max-width:960px;margin:auto;padding:14px}
+.card{background:#fff;border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 3px 14px rgba(0,0,0,.09)}
+.top{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.stats{display:flex;gap:18px;flex-wrap:wrap}
+.muted{color:#64748b;font-size:14px}
+h1{margin:3px 0 8px}
+.center{text-align:center}
+.kind{font-weight:800;color:#2463d4;letter-spacing:.5px}
+.instruction{font-size:20px;font-weight:700;margin:10px 0}
+.target{font-size:56px;font-weight:900;margin:8px}
+.tablewrap{overflow:auto;padding:4px}
+table.pit{border-spacing:4px;margin:auto}
+.pit th,.pit td{min-width:48px;height:48px;text-align:center;border-radius:9px}
+.pit th{background:#172033;color:#fff;font-weight:800}
+.pit td{background:#e7edf5;font-weight:800;cursor:pointer;user-select:none;transition:.12s}
+.pit td:hover{background:#d7e4f2}
+.pit td.hidden-product{color:transparent}
+.pit td.revealed{color:#1459a6;background:#e7f2ff}
+.pit td.selected{color:#063f83;background:#90caf9;box-shadow:inset 0 0 0 4px #1565c0;transform:scale(.96)}
+.pit td.bad{background:#ffcdd2;color:#b71c1c;box-shadow:inset 0 0 0 4px #c62828}
+.pit td.correct{background:#c8e6c9;color:#1b5e20;box-shadow:inset 0 0 0 4px #2e7d32}
+button{border:0;border-radius:12px;padding:13px 18px;font-size:16px;font-weight:800;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+.primary{background:#2463d4;color:#fff}
+.secondary{background:#e7edf5;color:#172033}
+.answers{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.answer{min-width:90px;background:#e7edf5}
+.answer.selected{background:#90caf9;box-shadow:inset 0 0 0 3px #1565c0}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:15px}
+.msg{min-height:28px;font-weight:700;margin-top:12px}
+.hint{font-size:14px;color:#64748b;margin-top:8px}
+.hidden{display:none!important}
+.finalScore{font-size:64px;font-weight:900}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="card">
+    <div class="top">
+      <div><div class="muted">DESAFIO DA TABELA</div><h1>Raciocínio Matemático</h1><div class="muted">por Credemik</div></div>
+      <div class="stats">
+        <div><b>Desafio:</b> <span id="round">0</span>/10</div>
+        <div><b>Pontos:</b> <span id="score">0</span></div>
+        <div><b>Tempo:</b> <span id="clock">0,0 s</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="game" class="card center">
+    <div id="kind" class="kind">PRONTO?</div>
+    <div id="instruction" class="instruction">Clique em Iniciar para começar.</div>
+    <div id="target" class="target">10</div>
+
+    <div id="tableArea" class="tablewrap"></div>
+
+    <div id="answers" class="answers hidden"></div>
+
+    <div id="multipleHint" class="hint hidden">
+      No desafio de múltiplos, os resultados começam escondidos.
+      Toque em várias células para revelá-las e marcá-las. Depois clique em <b>Confirmar</b>.
+    </div>
+
+    <div class="actions">
+      <button id="start" class="primary">▶ Iniciar</button>
+      <button id="confirm" class="primary" disabled>✓ Confirmar</button>
+      <button id="clear" class="secondary" disabled>↺ Limpar seleções</button>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+
+  <div id="final" class="card center hidden">
+    <div class="kind">FIM DA PARTIDA</div>
+    <h2>Pontuação final</h2>
+    <div id="finalScore" class="finalScore">0</div>
+    <p id="finalText"></p>
+    <button id="again" class="primary">🔄 Jogar novamente</button>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const $=id=>document.getElementById(id);
+const TOTAL=10;
+let round=0,score=0,target=0,type="",expected=[];
+let selected=[];
+let running=false,startedAt=0,timerId=null;
+
+function shuffle(a){
+  a=a.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function unique(a){return [...new Set(a)]}
+function isPrime(n){
+  if(n<2)return false;
+  for(let i=2;i*i<=n;i++)if(n%i===0)return false;
+  return true;
+}
+function divisors(n){
+  const d=[];
+  for(let i=1;i<=n;i++)if(n%i===0)d.push(i);
+  return d;
+}
+function factorPairs(n){
+  const p=[];
+  for(let r=1;r<=10;r++)for(let c=1;c<=10;c++)if(r*c===n)p.push(r+"x"+c);
+  return p;
+}
+function points(ms){
+  const s=ms/1000;
+  if(s<=5)return 10;
+  if(s<15)return 8;
+  return 5;
+}
+function timeText(ms){return (ms/1000).toFixed(1).replace(".",",")+" s"}
+
+function buildTable(){
+  const table=document.createElement("table");
+  table.className="pit";
+  const thead=document.createElement("thead");
+  const hr=document.createElement("tr");
+  const corner=document.createElement("th");
+  corner.textContent="×";hr.appendChild(corner);
+  for(let c=1;c<=10;c++){
+    const th=document.createElement("th");th.textContent=c;hr.appendChild(th);
+  }
+  thead.appendChild(hr);table.appendChild(thead);
+
+  const tbody=document.createElement("tbody");
+  for(let r=1;r<=10;r++){
+    const tr=document.createElement("tr");
+    const th=document.createElement("th");th.textContent=r;tr.appendChild(th);
+    for(let c=1;c<=10;c++){
+      const td=document.createElement("td");
+      td.dataset.r=r;td.dataset.c=c;td.dataset.key=r+"x"+c;
+      td.textContent=r*c;
+      td.addEventListener("click",()=>cellClick(td));
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  $("tableArea").innerHTML="";
+  $("tableArea").appendChild(table);
+}
+
+function prepareTableForRound(){
+  const cells=$("tableArea").querySelectorAll("td");
+  cells.forEach(td=>{
+    td.classList.remove("selected","bad","correct","revealed","hidden-product");
+    if(type==="multiplos"){
+      td.classList.add("hidden-product");
+    }
+  });
+}
+
+function cellClick(td){
+  if(!running || type!=="multiplos")return;
+
+  const key=td.dataset.key;
+  const pos=selected.indexOf(key);
+
+  // Primeiro toque revela o resultado e seleciona a célula.
+  if(pos===-1){
+    selected.push(key);
+    td.classList.remove("hidden-product");
+    td.classList.add("revealed","selected");
+  }else{
+    // Segundo toque desmarca, mas o número continua revelado.
+    selected.splice(pos,1);
+    td.classList.remove("selected");
+    td.classList.add("revealed");
+  }
+  $("msg").textContent=selected.length+" célula(s) selecionada(s).";
+}
+
+function clearSelection(){
+  selected=[];
+  $("tableArea").querySelectorAll("td").forEach(td=>{
+    td.classList.remove("selected","bad","correct","revealed");
+    if(type==="multiplos")td.classList.add("hidden-product");
+  });
+  $("answers").querySelectorAll(".answer").forEach(b=>b.classList.remove("selected"));
+  $("msg").textContent="";
+}
+
+function showAnswers(values,multiple=false){
+  const box=$("answers");
+  box.innerHTML="";
+  box.classList.remove("hidden");
+  const vals=shuffle(unique(values.map(String)));
+
+  vals.forEach(v=>{
+    const b=document.createElement("button");
+    b.type="button";b.className="answer";b.textContent=v;b.dataset.value=v;
+    b.addEventListener("click",()=>{
+      if(!running)return;
+      if(multiple){
+        const i=selected.indexOf(v);
+        if(i>=0){selected.splice(i,1);b.classList.remove("selected")}
+        else{selected.push(v);b.classList.add("selected")}
+      }else{
+        box.querySelectorAll(".answer").forEach(x=>x.classList.remove("selected"));
+        b.classList.add("selected");selected=[v];
+      }
+      $("msg").textContent=selected.length+" opção(ões) selecionada(s).";
+    });
+    box.appendChild(b);
+  });
+}
+
+function prepareRound(){
+  if(round>=TOTAL){finish();return}
+  round++;
+  $("round").textContent=round;
+  selected=[];
+  $("answers").classList.add("hidden");
+  $("answers").innerHTML="";
+  $("multipleHint").classList.add("hidden");
+  $("msg").textContent="";
+  $("confirm").disabled=false;
+  $("clear").disabled=false;
+
+  const types=["antecessor","sucessor","primo","divisores","multiplos","complete"];
+  type=round===1?"antecessor":types[Math.floor(Math.random()*types.length)];
+
+  if(type==="antecessor"||type==="sucessor"){
+    target=10+Math.floor(Math.random()*90);
+    const ans=type==="antecessor"?target-1:target+1;
+    $("kind").textContent=type==="antecessor"?"ANTECESSOR":"SUCESSOR";
+    $("instruction").textContent=type==="antecessor"?"Qual é o antecessor de:":"Qual é o sucessor de:";
+    $("target").textContent=target;
+    expected=[String(ans)];
+    showAnswers([ans,ans+1,ans-1,ans+2]);
+  }
+  else if(type==="primo"){
+    target=10+Math.floor(Math.random()*90);
+    while(!isPrime(target))target=10+Math.floor(Math.random()*90);
+    let other=target+1;
+    while(isPrime(other))other++;
+    $("kind").textContent="NÚMERO PRIMO";
+    $("instruction").textContent="Qual dos dois números é primo?";
+    $("target").textContent="";
+    expected=[String(target)];
+    showAnswers([target,other]);
+  }
+  else if(type==="divisores"){
+    target=12+Math.floor(Math.random()*29);
+    $("kind").textContent="DIVISORES";
+    $("instruction").textContent="Selecione todos os divisores de:";
+    $("target").textContent=target;
+    expected=divisors(target).map(String);
+    showAnswers(expected.concat([String(target-1),String(target+1),String(target+2)]),true);
+  }
+  else if(type==="multiplos"){
+    // Banco ampliado: qualquer resultado da Tabela de Pitágoras 1–10
+    // que apareça em pelo menos duas células pode virar desafio.
+    const counts={};
+    for(let r=1;r<=10;r++){
+      for(let c=1;c<=10;c++){
+        const product=r*c;
+        counts[product]=(counts[product]||0)+1;
+      }
+    }
+    const pool=Object.keys(counts)
+      .map(Number)
+      .filter(n=>counts[n]>=2);
+    target=pool[Math.floor(Math.random()*pool.length)];
+    $("kind").textContent="MÚLTIPLOS";
+    $("instruction").textContent="Encontre TODAS as células que resultam em:";
+    $("target").textContent=target;
+    expected=factorPairs(target);
+
+    $("multipleHint").classList.remove("hidden");
+    // A tabela é o único local de resposta neste desafio.
+    prepareTableForRound();
+  }
+  else{
+    const a=2+Math.floor(Math.random()*9),b=2+Math.floor(Math.random()*9);
+    $("kind").textContent="COMPLETE A OPERAÇÃO";
+    $("instruction").textContent="Complete: "+a+" × □ = "+(a*b);
+    $("target").textContent="";
+    expected=[String(b)];
+    showAnswers([b,b+1,b-1,b+2]);
+  }
+
+  if(type!=="multiplos"){
+    // Para os demais desafios, a tabela fica visível, mas os produtos ficam normais.
+    $("tableArea").querySelectorAll("td").forEach(td=>td.classList.remove("hidden-product"));
+  }
+
+  startedAt=performance.now();
+  running=true;
+  clearInterval(timerId);
+  timerId=setInterval(()=>{
+    if(running)$("clock").textContent=timeText(performance.now()-startedAt);
+  },100);
+}
+
+function verify(){
+  if(!running)return;
+
+  const sortedSelected=selected.slice().sort();
+  const sortedExpected=expected.slice().sort();
+  const ok=sortedSelected.length===sortedExpected.length &&
+           sortedSelected.every((x,i)=>x===sortedExpected[i]);
+
+  if(!ok){
+    $("msg").textContent="❌ Ainda não. Você pode continuar selecionando e corrigir suas escolhas.";
+
+    if(type==="multiplos"){
+      $("tableArea").querySelectorAll("td").forEach(td=>{
+        td.classList.remove("bad","correct");
+        const key=td.dataset.key;
+        if(selected.includes(key)){
+          if(expected.includes(key))td.classList.add("correct");
+          else td.classList.add("bad");
+        }
+      });
+    }
+    return;
+  }
+
+  const elapsed=performance.now()-startedAt;
+  const p=points(elapsed);
+  score+=p;
+  $("score").textContent=score;
+  $("clock").textContent=timeText(elapsed);
+  running=false;
+  clearInterval(timerId);
+  $("confirm").disabled=true;
+  $("clear").disabled=true;
+  $("msg").textContent="🎉 Correto! +"+p+" pontos — "+timeText(elapsed);
+
+  if(type==="multiplos"){
+    $("tableArea").querySelectorAll("td").forEach(td=>{
+      if(expected.includes(td.dataset.key)){
+        td.classList.remove("selected","bad","revealed","hidden-product");
+        td.classList.add("correct");
+      }
+    });
+  }
+
+  setTimeout(prepareRound,800);
+}
+
+function finish(){
+  running=false;clearInterval(timerId);
+  $("finalScore").textContent=score;
+  $("finalText").textContent="Você completou "+TOTAL+" desafios.";
+  $("final").classList.remove("hidden");
+  $("confirm").disabled=true;$("clear").disabled=true;
+}
+
+function startGame(){
+  round=0;score=0;
+  $("score").textContent="0";
+  $("round").textContent="0";
+  $("clock").textContent="0,0 s";
+  $("final").classList.add("hidden");
+  $("start").disabled=true;
+  prepareRound();
+}
+function resetGame(){location.reload()}
+
+buildTable();
+$("start").addEventListener("click",startGame);
+$("confirm").addEventListener("click",verify);
+$("clear").addEventListener("click",clearSelection);
+$("again").addEventListener("click",resetGame);
+})();
+</script>
+</body>
+</html>
