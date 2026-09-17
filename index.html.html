@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Desafio da Tabela — Credemik</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+body{font-family:Arial,Helvetica,sans-serif;background:#edf4fb;color:#172033}
+button{font:inherit;font-weight:800;border:0;border-radius:12px;cursor:pointer}
+button:disabled{opacity:.45}
+#app{height:100dvh;display:flex;flex-direction:column}
+header{height:58px;background:white;display:flex;align-items:center;justify-content:space-between;padding:5px 10px;box-shadow:0 2px 8px #0001;flex:none}
+.brand small{display:block;color:#64748b;font-size:9px;font-weight:900;letter-spacing:.8px}
+.brand strong{font-size:17px}
+.brand em{display:block;color:#64748b;font-size:9px;font-style:normal}
+.stats{display:flex;gap:5px}
+.stat{background:#e8eef6;padding:6px 7px;border-radius:8px;font-size:10px;font-weight:800;white-space:nowrap}
+main{flex:1;min-height:0;padding:7px;display:flex}
+.card{width:min(700px,100%);margin:auto;height:100%;min-height:0;background:#fff;border-radius:15px;padding:8px;display:flex;flex-direction:column;box-shadow:0 3px 13px #0001}
+.challenge{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center}
+.kind{font-size:10px;color:#2463d4;font-weight:900;letter-spacing:.7px}
+.question{font-size:15px;line-height:1.12;text-align:center;font-weight:900;margin:3px 0}
+.target{font-size:35px;font-weight:900;line-height:1;min-height:35px;margin:2px}
+#tableArea{width:100%;flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+.tableWrap{width:100%;overflow:hidden}
+table{border-spacing:2px;margin:auto;width:min(100%,430px);table-layout:fixed}
+th,td{width:9.09%;aspect-ratio:1/1;text-align:center;border-radius:5px;font-size:clamp(10px,3.1vw,17px);font-weight:900;padding:0}
+th{background:#172033;color:#fff}
+td{background:#e7edf5;cursor:pointer;user-select:none}
+td.hidden{color:transparent}
+td.revealed{color:#1459a6;background:#e5f2ff}
+td.selected{color:#063f83;background:#90caf9;box-shadow:inset 0 0 0 3px #1565c0;transform:scale(.94)}
+td.good{color:#1b5e20;background:#c8e6c9;box-shadow:inset 0 0 0 3px #2e7d32}
+td.bad{color:#b71c1c;background:#ffcdd2;box-shadow:inset 0 0 0 3px #c62828}
+#answers{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;padding:5px 0}
+.answer{background:#e7edf5;padding:10px 13px;min-width:75px}
+.answer.selected{background:#90caf9;box-shadow:inset 0 0 0 3px #1565c0}
+.symbol{font-size:23px;min-width:70px}
+.hint{font-size:10px;color:#64748b;text-align:center;line-height:1.1}
+.msg{height:20px;text-align:center;font-size:11px;font-weight:800;padding-top:3px}
+.actions{display:flex;justify-content:center;gap:7px;padding-top:5px;flex:none}
+.primary{background:#2463d4;color:white;padding:10px 15px}
+.secondary{background:#e7edf5;color:#172033;padding:10px 13px}
+.hiddenUI{display:none!important}
+
+#finish{position:fixed;inset:0;background:#10213bcc;z-index:50;display:flex;align-items:center;justify-content:center;padding:15px}
+.finishBox{background:#fff;border-radius:18px;width:min(450px,100%);max-height:92dvh;overflow:auto;padding:17px;text-align:center}
+.finalScore{font-size:55px;font-weight:900}
+.name{width:100%;padding:11px;border:2px solid #d9e1ec;border-radius:10px;font-size:16px;text-align:center}
+.rank{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
+.rank th,.rank td{padding:5px;border-bottom:1px solid #e5eaf1;aspect-ratio:auto}
+.rank th{background:#172033;color:#fff}
+.rank td{text-align:center;background:#fff}
+.fire{position:fixed;inset:0;pointer-events:none;z-index:100}
+
+@media(max-height:600px){
+ header{height:49px}
+ .brand strong{font-size:14px}
+ .stat{font-size:9px;padding:4px}
+ .card{padding:5px}
+ .question{font-size:13px}
+ .target{font-size:29px;min-height:29px}
+ button{padding:8px 11px!important;font-size:13px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="brand">
+    <small>DESAFIO DA TABELA</small>
+    <strong>Raciocínio Matemático</strong>
+    <em>por Credemik</em>
+  </div>
+  <div class="stats">
+    <div class="stat">Desafio <span id="round">0</span>/20</div>
+    <div class="stat">Pontos <span id="score">0</span></div>
+    <div class="stat">Tempo <span id="timer">0,0 s</span></div>
+  </div>
+</header>
+
+<main>
+<section class="card">
+ <div class="challenge">
+  <div id="kind" class="kind">PRONTO?</div>
+  <div id="question" class="question">Clique em Iniciar para começar.</div>
+  <div id="target" class="target"></div>
+  <div id="tableArea"></div>
+  <div id="answers"></div>
+  <div id="hint" class="hint"></div>
+  <div id="msg" class="msg"></div>
+  <div class="actions">
+   <button id="start" class="primary">▶ Iniciar</button>
+   <button id="confirm" class="primary" disabled>✓ Confirmar</button>
+   <button id="clear" class="secondary" disabled>↺ Limpar</button>
+  </div>
+ </div>
+</section>
+</main>
+</div>
+
+<div id="finish" class="hiddenUI">
+ <div class="finishBox">
+  <div class="kind">FIM DA PARTIDA</div>
+  <h2 style="margin:3px">🎉 Parabéns!</h2>
+  <div id="finalScore" class="finalScore">0</div>
+  <div id="finalTime" style="font-weight:800"></div>
+  <input id="playerName" class="name" maxlength="20" placeholder="Digite seu nome">
+  <button id="save" class="primary" style="margin-top:7px">🏆 Salvar no ranking</button>
+  <h3 style="margin:12px 0 4px">🏅 Ranking — Top 50</h3>
+  <div style="font-size:9px;color:#64748b">Mais pontos primeiro; em caso de empate, menor tempo.</div>
+  <table class="rank"><thead><tr><th>#</th><th>Jogador</th><th>Pontos</th><th>Tempo</th></tr></thead><tbody id="rankBody"></tbody></table>
+  <button id="again" class="primary" style="margin-top:9px">🔄 Jogar novamente</button>
+ </div>
+</div>
+<canvas id="fire" class="fire"></canvas>
+
+<script>
+"use strict";
+
+const TOTAL=20;
+const $=id=>document.getElementById(id);
+let round=0,score=0,type="",target=0,expected=[],selected=[];
+let running=false,startTime=0,totalTime=0,timer=null;
+
+const TYPES=["antecessor","sucessor","primo","divisores","multiplos","complete","simbolos"];
+
+const SYMBOLS=[
+["Qual símbolo significa “pertence a”?","∈",["∈","∉","⊂"]],
+["Qual símbolo significa “não pertence a”?","∉",["∈","∉","⊃"]],
+["Qual símbolo significa “está contido em”?","⊂",["⊂","⊃","∈"]],
+["Qual símbolo significa “não está contido em”?","⊄",["⊄","⊂","⊆"]],
+["Qual símbolo significa “contém”?","⊃",["⊃","⊂","∈"]],
+["Qual símbolo significa “não contém”?","⊅",["⊅","⊃","⊇"]],
+["Qual símbolo significa “está contido ou é igual a”?","⊆",["⊆","⊂","⊇"]],
+["Qual símbolo significa “contém ou é igual a”?","⊇",["⊇","⊆","⊃"]],
+["Qual símbolo representa o conjunto vazio?","∅",["∅","∞","∈"]],
+["Qual símbolo representa união de conjuntos?","∪",["∪","∩","⊂"]],
+["Qual símbolo representa interseção de conjuntos?","∩",["∩","∪","⊂"]],
+["Qual símbolo significa “diferente de”?","≠",["≠","=","≈"]],
+["Qual símbolo significa “menor que”?","<",["<",">","≤"]],
+["Qual símbolo significa “maior que”?",">",[">","<","≥"]],
+["Qual símbolo significa “menor ou igual a”?","≤",["≤","<","≥"]],
+["Qual símbolo significa “maior ou igual a”?","≥",[">","≤","≥"]],
+["Qual símbolo representa aproximadamente igual?","≈",["≈","≠","="]],
+["Qual símbolo representa infinito?","∞",["∞","∅","∈"]],
+["Qual símbolo significa “para todo”?","∀",["∀","∃","∄"]],
+["Qual símbolo significa “existe”?","∃",["∃","∀","∄"]],
+["Qual símbolo significa “não existe”?","∄",["∄","∃","∀"]],
+["Qual símbolo representa a diferença de conjuntos?","\\",["\\","∪","∩"]],
+["Qual símbolo representa igualdade?","=",["=","≠","≈"]],
+["Qual símbolo significa “não está contido nem é igual”?","⊈",["⊈","⊆","⊇"]],
+["Qual símbolo significa “não contém nem é igual”?","⊉",["⊉","⊇","⊆"]]
+];
+
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function unique(a){return [...new Set(a)]}
+function prime(n){if(n<2)return false;for(let i=2;i*i<=n;i++)if(n%i===0)return false;return true}
+function divs(n){let a=[];for(let i=1;i<=n;i++)if(n%i===0)a.push(i);return a}
+function pairs(n){let a=[];for(let r=1;r<=10;r++)for(let c=1;c<=10;c++)if(r*c===n)a.push(r+"x"+c);return a}
+function fmt(ms){return (ms/1000).toFixed(1).replace(".",",")+" s"}
+function pts(ms){let s=ms/1000;return s<=5?10:s<15?8:5}
+
+function makeTable(){
+ const t=document.createElement("table");
+ const tr=document.createElement("tr");
+ let h=document.createElement("th");h.textContent="×";tr.appendChild(h);
+ for(let c=1;c<=10;c++){h=document.createElement("th");h.textContent=c;tr.appendChild(h)}
+ const thead=document.createElement("thead");thead.appendChild(tr);t.appendChild(thead);
+ const body=document.createElement("tbody");
+ for(let r=1;r<=10;r++){
+  const row=document.createElement("tr");h=document.createElement("th");h.textContent=r;row.appendChild(h);
+  for(let c=1;c<=10;c++){
+   const td=document.createElement("td");td.dataset.key=r+"x"+c;td.textContent=r*c;
+   td.onclick=()=>selectCell(td);row.appendChild(td);
+  }
+  body.appendChild(row)
+ }
+ t.appendChild(body);$("tableArea").innerHTML="";$("tableArea").appendChild(t)
+}
+function showTable(on){$("tableArea").classList.toggle("hiddenUI",!on)}
+function selectCell(td){
+ if(!running||type!=="multiplos")return;
+ const key=td.dataset.key,i=selected.indexOf(key);
+ if(i<0){selected.push(key);td.classList.remove("hidden");td.classList.add("revealed","selected")}
+ else{selected.splice(i,1);td.classList.remove("selected")}
+ $("msg").textContent=selected.length+" célula(s) marcada(s)."
+}
+function clearSel(){
+ selected=[];
+ document.querySelectorAll("#tableArea td").forEach(td=>{td.classList.remove("selected","good","bad","revealed");if(type==="multiplos")td.classList.add("hidden")});
+ document.querySelectorAll("#answers .answer").forEach(b=>b.classList.remove("selected"));
+ $("msg").textContent="";
+}
+function answers(values,multi=false,symbol=false){
+ const box=$("answers");box.innerHTML="";box.classList.remove("hiddenUI");
+ shuffle(unique(values.map(String))).forEach(v=>{
+  const b=document.createElement("button");b.className="answer"+(symbol?" symbol":"");b.textContent=v;
+  b.onclick=()=>{
+   if(!running)return;
+   if(multi){
+    const i=selected.indexOf(v);if(i<0){selected.push(v);b.classList.add("selected")}else{selected.splice(i,1);b.classList.remove("selected")}
+   }else{
+    box.querySelectorAll("button").forEach(x=>x.classList.remove("selected"));b.classList.add("selected");selected=[v]
+   }
+   $("msg").textContent=selected.length+" opção(ões) selecionada(s)."
+  };
+  box.appendChild(b)
+ })
+}
+function next(){
+ if(round>=TOTAL){finish();return}
+ round++;selected=[];$("round").textContent=round;$("msg").textContent="";$("answers").innerHTML="";$("answers").classList.add("hiddenUI");$("hint").textContent="";
+ $("confirm").disabled=false;$("clear").disabled=false;
+ type=round===1?"antecessor":TYPES[Math.floor(Math.random()*TYPES.length)];
+ showTable(type==="multiplos");
+
+ if(type==="multiplos"){
+  const count={};for(let r=1;r<=10;r++)for(let c=1;c<=10;c++){let n=r*c;count[n]=(count[n]||0)+1}
+  const pool=Object.keys(count).map(Number).filter(n=>count[n]>=2);
+  target=pool[Math.floor(Math.random()*pool.length)];
+  $("kind").textContent="MÚLTIPLOS";$("question").textContent="Encontre TODAS as células que resultam em:";$("target").textContent=target;
+  expected=pairs(target);$("hint").textContent="Os resultados estão escondidos. Toque em várias células para revelar e marcar. Depois confirme.";
+  document.querySelectorAll("#tableArea td").forEach(td=>{td.classList.remove("selected","good","bad","revealed");td.classList.add("hidden")});
+ }
+ else if(type==="simbolos"){
+  const q=SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)];
+  $("kind").textContent="SÍMBOLOS MATEMÁTICOS";$("question").textContent=q[0];$("target").textContent="";expected=[q[1]];answers(q[2],false,true)
+ }
+ else if(type==="antecessor"||type==="sucessor"){
+  target=10+Math.floor(Math.random()*90);let a=type==="antecessor"?target-1:target+1;
+  $("kind").textContent=type==="antecessor"?"ANTECESSOR":"SUCESSOR";$("question").textContent=type==="antecessor"?"Qual é o antecessor de:":"Qual é o sucessor de:";$("target").textContent=target;expected=[String(a)];
+  answers([a,a+1,a-1,a+2])
+ }
+ else if(type==="primo"){
+  target=10+Math.floor(Math.random()*90);while(!prime(target))target=10+Math.floor(Math.random()*90);let o=target+1;while(prime(o))o++;
+  $("kind").textContent="NÚMERO PRIMO";$("question").textContent="Qual dos dois números é primo?";$("target").textContent="";expected=[String(target)];answers([target,o])
+ }
+ else if(type==="divisores"){
+  target=12+Math.floor(Math.random()*29);$("kind").textContent="DIVISORES";$("question").textContent="Selecione todos os divisores de:";$("target").textContent=target;expected=divs(target).map(String);
+  answers(expected.concat([String(target-1),String(target+1),String(target+2)]),true)
+ }
+ else{
+  let a=2+Math.floor(Math.random()*9),b=2+Math.floor(Math.random()*9);
+  $("kind").textContent="COMPLETE A OPERAÇÃO";$("question").textContent=a+" × □ = "+(a*b);$("target").textContent="";expected=[String(b)];answers([b,b+1,b-1,b+2])
+ }
+ startTime=performance.now();running=true;clearInterval(timer);
+ timer=setInterval(()=>{if(running)$("timer").textContent=fmt(performance.now()-startTime)},100)
+}
+function verify(){
+ if(!running)return;
+ const a=selected.slice().sort(),b=expected.slice().sort(),ok=a.length===b.length&&a.every((v,i)=>v===b[i]);
+ if(!ok){
+  $("msg").textContent="❌ Ainda não. Continue tentando.";
+  if(type==="multiplos")document.querySelectorAll("#tableArea td").forEach(td=>{td.classList.remove("good","bad");if(selected.includes(td.dataset.key))(expected.includes(td.dataset.key)?td.classList.add("good"):td.classList.add("bad"))});
+  return
+ }
+ const elapsed=performance.now()-startTime;totalTime+=elapsed;score+=pts(elapsed);$("score").textContent=score;$("timer").textContent=fmt(elapsed);
+ running=false;clearInterval(timer);$("confirm").disabled=true;$("clear").disabled=true;$("msg").textContent="🎉 Correto! +"+pts(elapsed)+" pontos";
+ if(type==="multiplos")document.querySelectorAll("#tableArea td").forEach(td=>{if(expected.includes(td.dataset.key)){td.classList.remove("selected","revealed","hidden");td.classList.add("good")}});
+ setTimeout(next,600)
+}
+function finish(){
+ running=false;clearInterval(timer);$("finalScore").textContent=score;$("finalTime").textContent="Tempo total: "+fmt(totalTime);
+ $("finish").classList.remove("hiddenUI");renderRank();fireworks()
+}
+function getRank(){try{return JSON.parse(localStorage.getItem("desafioTabelaCredemikTop50")||"[]")}catch(e){return[]}}
+function renderRank(){
+ const body=$("rankBody");body.innerHTML="";const list=getRank();
+ if(!list.length){body.innerHTML="<tr><td colspan='4'>Ainda não há resultados.</td></tr>";return}
+ list.forEach((r,i)=>{const tr=document.createElement("tr");tr.innerHTML="<td>"+(i+1)+"</td><td>"+safe(r.name)+"</td><td>"+r.score+"</td><td>"+fmt(r.time)+"</td>";body.appendChild(tr)})
+}
+function safe(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+$("save").onclick=()=>{
+ const name=$("playerName").value.trim()||"Jogador";let list=getRank();list.push({name,score,time:totalTime});
+ list.sort((a,b)=>b.score-a.score||a.time-b.time);localStorage.setItem("desafioTabelaCredemikTop50",JSON.stringify(list.slice(0,50)));renderRank();$("save").disabled=true;$("playerName").disabled=true
+}
+$("start").onclick=()=>{round=0;score=0;totalTime=0;$("score").textContent=0;$("round").textContent=0;$("timer").textContent="0,0 s";$("start").disabled=true;next()}
+$("confirm").onclick=verify;$("clear").onclick=clearSel;$("again").onclick=()=>location.reload();
+makeTable();
+
+function fireworks(){
+ const c=$("fire"),ctx=c.getContext("2d");c.width=innerWidth;c.height=innerHeight;const p=[];
+ function burst(){const x=50+Math.random()*(innerWidth-100),y=70+Math.random()*innerHeight*.4;for(let i=0;i<25;i++){const a=Math.random()*Math.PI*2,s=1.4+Math.random()*3;p.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:1,h:Math.random()*360})}}
+ let t=0;function frame(){t++;ctx.clearRect(0,0,c.width,c.height);if(t<150&&Math.random()<.08)burst();p.forEach(q=>{q.x+=q.vx;q.y+=q.vy;q.vy+=.035;q.l-=.018;ctx.globalAlpha=Math.max(q.l,0);ctx.fillStyle="hsl("+q.h+",90%,60%)";ctx.beginPath();ctx.arc(q.x,q.y,2,0,7);ctx.fill()});ctx.globalAlpha=1;if(t<170||p.some(q=>q.l>0))requestAnimationFrame(frame);else ctx.clearRect(0,0,c.width,c.height)}frame()
+}
+</script>
+</body>
+</html>
